@@ -25,6 +25,25 @@ static pthread_mutex_t s_startupMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t s_startupCond = PTHREAD_COND_INITIALIZER;
 
 
+static int connectToServer(int socket_fd) {
+    struct sockaddr_in addr;
+
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	addr.sin_port = htons(8000);
+
+	while(1) {
+		if (-1 == connect(socket_fd, (const sockaddr*) &addr, sizeof(addr))) {
+			RLOGE("ERROR connect socket, sleep 3");
+			return 1;
+		} else {
+			RLOGD("socket %d connected", socket_fd);
+			return 0;
+		}
+	}
+
+}
 
 static void *
 readerLoop(void *param) {
@@ -46,24 +65,18 @@ readerLoop(void *param) {
     pthread_cond_broadcast(&s_startupCond);
 
     pthread_mutex_unlock(&s_startupMutex);
+
 	RLOGD("TCP socket created, fd=%d", socket_fd);
-
-
-    struct sockaddr_in addr;
-
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-	addr.sin_port = htons(8000);
-
-	while(1) {
-		if (-1 == connect(socket_fd, (const sockaddr*) &addr, sizeof(addr))) {
-			RLOGE("ERROR connect socket, sleep 3");
-			sleep(5000);
+    while(1) {
+		if (0 == connectToServer(socket_fd)) {
+			goto connected;
 		} else {
-			RLOGD("socket %d connected", socket_fd);
+			sleep(3000);
 		}
+	
 	}
+	
+connected:
 
 	while(1) {
 		RLOGD("readerLoop sleep....");
