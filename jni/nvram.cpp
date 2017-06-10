@@ -45,6 +45,17 @@ static int connectToServer(int socket_fd) {
 
 }
 
+static void printBytesAsHexString(char[] buf) {
+	int i, size = sizeof(buf) / sizeof(char);
+	char *buf_str = (char*) malloc(3 * size), *buf_ptr = buf_str;
+	if (buf_str) {
+	  for (i = 0; i < size; i++)
+		buf_ptr += sprintf(buf_ptr, i < size - 1 ? "%02X:" : "%02X\0", buf[i]);
+	  RLOGD("%s\n", buf_str);
+	  free(buf_str);
+	}
+}
+
 static void *
 readerLoop(void *param) {
 	RLOGD("readerLoop start");
@@ -79,8 +90,23 @@ readerLoop(void *param) {
 connected:
 
 	while(1) {
-		RLOGD("readerLoop sleep....");
-		sleep(3000);
+		RLOGD("Receiving from the socket... ");	
+#define MAX_BUFFER_SIZE = 128;
+		byte[MAX_BUFFER_SIZE] buffer;
+		ssize_t recvSize = recv(socket_fd, buffer, MAX_BUFFER_SIZE - 1, 0);  
+
+		if (-1 == recvSize) {  
+			RLOGE("receiver goes wrong");  
+		} else {  
+			buffer[recvSize] = NULL;
+
+			if (recvSize > 0) {
+				RLOGD("Received %d bytes:%s", MAX_BUFFER_SIZE, buffer);
+				printBytesAsHexString(buffer[recvSize]);
+			} else {
+				RLOGD("Client disconnected.");
+			}  
+		}
 	}
 }
 
@@ -89,6 +115,12 @@ extern "C" void
 NVRAM_startReaderThread(void) {
 	RLOGD("NVRAM_startEventLoop.. s_started=%d", s_started);
     s_started = 0;
+
+//printBytesAsHexString TEST begin
+	char buf[] = {0,1,10,11};
+	printBytesAsHexString(buf);
+//printBytesAsHexString TEST end
+
 
     pthread_attr_t attr;
     pthread_attr_init(&attr);
